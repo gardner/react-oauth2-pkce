@@ -21,11 +21,9 @@ export interface AuthTokens {
 
 export class AuthService {
   props: AuthServiceProps
-  _listeners: Map<string, () => void>
 
   constructor(props: AuthServiceProps) {
     this.props = props
-    this._listeners = new Map<string, () => void>()
   }
 
   getCodeFromLocation(location: Location): string | null {

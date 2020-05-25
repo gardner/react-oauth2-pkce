@@ -14,8 +14,7 @@ export const AuthProvider = (props: AuthProviderProps): ReactElement => {
   const [authTokens, setAuthTokens] = useState(authService.getAuthTokens())
 
   useEffect(() => {
-    const code = authService.getCodeFromLocation(location)
-    console.log('useEffect', location.href)
+    const code = authService.getCodeFromLocation(window.location)
     if (code !== null) {
       authService
         .fetchToken(code)
@@ -27,7 +26,7 @@ export const AuthProvider = (props: AuthProviderProps): ReactElement => {
           console.warn({ e })
         })
     }
-  }, [location, authService])
+  }, [window.location, authService])
 
   return (
     <AuthContext.Provider value={{ authTokens, authService }}>

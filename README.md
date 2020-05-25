@@ -28,7 +28,7 @@ const authService = new AuthService({
 
 const App = () => {
   return (
-    <AuthProvider authService={authService} location={window.location}>
+    <AuthProvider authService={authService} >
       <Routes />
     </AuthProvider>
   )
