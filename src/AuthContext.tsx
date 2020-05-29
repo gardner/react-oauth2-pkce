@@ -1,10 +1,9 @@
 import React, { useContext, ReactElement } from 'react'
 
-import { AuthServiceProps, AuthService, AuthTokens } from './AuthService'
+import { AuthServiceProps, AuthService } from './AuthService'
 
 export type AuthContextProps = {
   authService: AuthService
-  authTokens: AuthTokens
 }
 
 export type AuthContextType = AuthContextProps | undefined

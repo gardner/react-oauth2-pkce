@@ -33,6 +33,19 @@ export class AuthService {
 
   constructor(props: AuthServiceProps) {
     this.props = props
+    const code = this.getCodeFromLocation(window.location)
+    if (code !== null) {
+      this.fetchToken(code)
+        .then(() => {
+          this.restoreUri()
+        })
+        .catch((e) => {
+          this.removeItem('pkce')
+          this.removeItem('auth')
+          this.removeCodeFromLocation()
+          console.warn({ e })
+        })
+    }
   }
 
   getUser(): {} {
@@ -109,11 +122,11 @@ export class AuthService {
     return window.localStorage.getItem('auth') !== null
   }
 
-  async logout(): Promise<void> {
-    const { location } = this.props
+  async logout(): Promise<boolean> {
     this.removeItem('pkce')
     this.removeItem('auth')
-    location.reload()
+    window.location.reload()
+    return true
   }
 
   async login(): Promise<void> {
@@ -121,11 +134,12 @@ export class AuthService {
   }
 
   // this will do a full page reload and to to the OAuth2 provider's login page and then redirect back to redirectUri
-  authorize(): void {
+  authorize(): boolean {
     const { clientId, provider, redirectUri, scopes } = this.props
 
     const pkce = createPKCECodes()
     window.localStorage.setItem('pkce', JSON.stringify(pkce))
+    window.localStorage.setItem('preAuthUri', location.href)
     window.localStorage.removeItem('auth')
     const codeChallenge = pkce.codeChallenge
 
@@ -139,7 +153,8 @@ export class AuthService {
     }
     // Responds with a 302 redirect
     const url = `${provider}/authorize?${toUrlEncoded(query)}`
-    window.location.href = url
+    window.location.replace(url)
+    return true
   }
 
   // this happens after a full page reload. Read the code from localstorage
@@ -154,7 +169,6 @@ export class AuthService {
     const grantType = 'authorization_code'
     const pkce: PKCECodePair = this.getPkce()
     const codeVerifier = pkce.codeVerifier
-    this.removeCodeFromLocation()
 
     const payload = {
       clientId,
@@ -176,5 +190,15 @@ export class AuthService {
     const json = await response.json()
     this.setAuthTokens(json as AuthTokens)
     return json
+  }
+
+  restoreUri(): void {
+    const uri = window.localStorage.getItem('preAuthUri')
+    window.localStorage.removeItem('preAuthUri')
+    console.log({ uri })
+    if (uri !== null) {
+      window.location.replace(uri)
+    }
+    this.removeCodeFromLocation()
   }
 }
