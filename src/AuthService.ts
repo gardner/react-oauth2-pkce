@@ -1,6 +1,8 @@
 import { createPKCECodes, PKCECodePair } from './pkce'
 import { toUrlEncoded } from './util'
 
+import jwtDecode from 'jwt-decode'
+
 export interface AuthServiceProps {
   clientId: string
   clientSecret?: string
@@ -12,11 +14,18 @@ export interface AuthServiceProps {
 }
 
 export interface AuthTokens {
-  idToken: string
-  accessToken: string
-  refreshToken: string
-  expiresIn: number
-  tokenType: string
+  id_token: string
+  access_token: string
+  refresh_token: string
+  expires_in: number
+  token_type: string
+}
+
+export interface JWTIDToken {
+  given_name: string
+  family_name: string
+  name: string
+  email: string
 }
 
 export class AuthService {
@@ -24,6 +33,13 @@ export class AuthService {
 
   constructor(props: AuthServiceProps) {
     this.props = props
+  }
+
+  getUser(): {} {
+    const t = this.getAuthTokens()
+    if (null === t) return {}
+    const decoded = jwtDecode(t.id_token) as {}
+    return decoded
   }
 
   getCodeFromLocation(location: Location): string | null {
@@ -93,16 +109,20 @@ export class AuthService {
     return window.localStorage.getItem('auth') !== null
   }
 
-  logout(): void {
+  async logout(): Promise<void> {
     const { location } = this.props
     this.removeItem('pkce')
     this.removeItem('auth')
     location.reload()
   }
 
+  async login(): Promise<void> {
+    this.authorize()
+  }
+
   // this will do a full page reload and to to the OAuth2 provider's login page and then redirect back to redirectUri
   authorize(): void {
-    const { clientId, location, provider, redirectUri, scopes } = this.props
+    const { clientId, provider, redirectUri, scopes } = this.props
 
     const pkce = createPKCECodes()
     window.localStorage.setItem('pkce', JSON.stringify(pkce))
@@ -119,7 +139,7 @@ export class AuthService {
     }
     // Responds with a 302 redirect
     const url = `${provider}/authorize?${toUrlEncoded(query)}`
-    location.replace(url)
+    window.location.href = url
   }
 
   // this happens after a full page reload. Read the code from localstorage

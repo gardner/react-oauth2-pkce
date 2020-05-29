@@ -1,5 +1,7 @@
 import { AuthService, AuthTokens, AuthServiceProps } from './AuthService'
 
+// import tokens from './__fixtures__/tokens.json'
+
 const props: AuthServiceProps = {
   clientId: 'testClientID',
   clientSecret: undefined,
@@ -39,18 +41,8 @@ describe('AuthService', () => {
     })
   })
 
-  // it('it retrives a token', () => {
-  //   const mockJsonPromise = Promise.resolve(JSON.stringify(stubTokens))
-  //   const mockFetchPromise = Promise.resolve({
-  //     json: () => mockJsonPromise
-  //   })
-  //   jest.spyOn(global, 'fetch').mockImplementation(() => mockFetchPromise)
-  //   const fetchSpy: SpyInstance = jest.spyOn(global.prototype, 'fetch')
-
-  //   const authorizationCode = 'authorizationCode'
-  //   authService.fetchToken(authorizationCode).then((tokens) => {
-  //     expect(tokens.accessToken).toContainEqual(stubTokens.accessToken)
-  //     expect(fetchSpy).toHaveBeenCalled()
-  //   })
+  // it('it parses a token', () => {
+  //   window.localStorage.setItem('auth', tokens)
+  //   authService.getUser()
   // })
 })
