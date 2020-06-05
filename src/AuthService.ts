@@ -11,6 +11,7 @@ export interface AuthServiceProps {
   provider: string
   redirectUri?: string
   scopes: string[]
+  expireSlack?: number
 }
 
 export interface AuthTokens {
@@ -28,7 +29,7 @@ export interface JWTIDToken {
   email: string
 }
 
-export class AuthService {
+export class AuthService<TIDToken = JWTIDToken> {
   props: AuthServiceProps
 
   constructor(props: AuthServiceProps) {
@@ -51,7 +52,7 @@ export class AuthService {
   getUser(): {} {
     const t = this.getAuthTokens()
     if (null === t) return {}
-    const decoded = jwtDecode(t.id_token) as {}
+    const decoded = jwtDecode(t.id_token) as TIDToken
     return decoded
   }
 
@@ -158,7 +159,7 @@ export class AuthService {
   }
 
   // this happens after a full page reload. Read the code from localstorage
-  async fetchToken(code: string): Promise<AuthTokens> {
+  async fetchToken(code: string, refreshToken?: string): Promise<AuthTokens> {
     const {
       clientId,
       clientSecret,
@@ -166,7 +167,7 @@ export class AuthService {
       provider,
       redirectUri
     } = this.props
-    const grantType = 'authorization_code'
+    const grantType = refreshToken ? 'refresh_token' : 'authorization_code'
     const pkce: PKCECodePair = this.getPkce()
     const codeVerifier = pkce.codeVerifier
 
@@ -176,7 +177,8 @@ export class AuthService {
       code,
       redirectUri,
       grantType,
-      codeVerifier
+      codeVerifier,
+      ...(refreshToken ? { refreshToken } : {})
     }
 
     const response = await fetch(`${provider}/token`, {
@@ -188,8 +190,32 @@ export class AuthService {
     })
     this.removeItem('pkce')
     const json = await response.json()
+    this.setRefreshTimer(json.refresh_token, json.expires_in)
     this.setAuthTokens(json as AuthTokens)
     return json
+  }
+
+  setRefreshTimer(refreshToken: string, expiresIn: number): void {
+    if (!refreshToken || !expiresIn) {
+      return
+    }
+    const { expireSlack = 1000 } = this.props
+
+    setTimeout(() => {
+      const code = this.getCodeFromLocation(window.location)
+      if (code !== null) {
+        this.fetchToken(code, refreshToken)
+          .then(() => {
+            this.restoreUri()
+          })
+          .catch((e) => {
+            this.removeItem('pkce')
+            this.removeItem('auth')
+            this.removeCodeFromLocation()
+            console.warn({ e })
+          })
+      }
+    }, expiresIn * 1000 - expireSlack)
   }
 
   restoreUri(): void {
