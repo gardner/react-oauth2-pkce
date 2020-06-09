@@ -28,6 +28,16 @@ export interface JWTIDToken {
   email: string
 }
 
+export interface TokenRequestBody {
+  clientId: string
+  grantType: string
+  redirectUri?: string
+  refresh_token?: string
+  clientSecret?: string
+  code?: string
+  codeVerifier?: string
+}
+
 export class AuthService {
   props: AuthServiceProps
 
@@ -158,7 +168,7 @@ export class AuthService {
   }
 
   // this happens after a full page reload. Read the code from localstorage
-  async fetchToken(code: string): Promise<AuthTokens> {
+  async fetchToken(code: string, isRefresh = false): Promise<AuthTokens> {
     const {
       clientId,
       clientSecret,
@@ -167,16 +177,28 @@ export class AuthService {
       redirectUri
     } = this.props
     const grantType = 'authorization_code'
-    const pkce: PKCECodePair = this.getPkce()
-    const codeVerifier = pkce.codeVerifier
 
-    const payload = {
+    let payload: TokenRequestBody = {
       clientId,
       ...(clientSecret ? { clientSecret } : {}),
-      code,
       redirectUri,
-      grantType,
-      codeVerifier
+      grantType
+    }
+    if (isRefresh) {
+      payload = {
+        ...payload,
+        grantType: 'refresh_token',
+        // eslint-disable-next-line @typescript-eslint/camelcase
+        refresh_token: code
+      }
+    } else {
+      const pkce: PKCECodePair = this.getPkce()
+      const codeVerifier = pkce.codeVerifier
+      payload = {
+        ...payload,
+        code,
+        codeVerifier
+      }
     }
 
     const response = await fetch(`${provider}/token`, {
@@ -191,6 +213,37 @@ export class AuthService {
     this.setAuthTokens(json as AuthTokens)
     return json
   }
+
+  // async refreshToken(refreshToken: string): Promise<AuthTokens> {
+  //   const {
+  //     clientId,
+  //     clientSecret,
+  //     contentType,
+  //     provider,
+  //     redirectUri
+  //   } = this.props
+  //   const grantType = 'refresh_token'
+  //   const payload = {
+  //     clientId,
+  //     ...(clientSecret ? { clientSecret } : {}),
+  //     // eslint-disable-next-line @typescript-eslint/camelcase
+  //     refresh_token: refreshToken,
+  //     grantType,
+  //     redirectUri
+  //   }
+  //   const response = await fetch(`${provider}/token`, {
+  //     headers: {
+  //       'Content-Type': contentType || 'application/x-www-form-urlencoded'
+  //     },
+  //     method: 'POST',
+  //     body: toUrlEncoded(payload)
+  //   })
+  //   this.removeItem('pkce')
+  //   this.removeItem('auth')
+  //   const json = await response.json()
+  //   this.setAuthTokens(json as AuthTokens)
+  //   return json
+  // }
 
   restoreUri(): void {
     const uri = window.localStorage.getItem('preAuthUri')
