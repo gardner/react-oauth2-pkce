@@ -11,6 +11,8 @@ export interface AuthServiceProps {
   provider: string
   redirectUri?: string
   scopes: string[]
+  autoRefresh?: boolean
+  refreshSlack?: number
 }
 
 export interface AuthTokens {
@@ -55,6 +57,8 @@ export class AuthService<TIDToken = JWTIDToken> {
           this.removeCodeFromLocation()
           console.warn({ e })
         })
+    } else if (this.props.autoRefresh) {
+      this.startTimer()
     }
   }
 
@@ -174,7 +178,8 @@ export class AuthService<TIDToken = JWTIDToken> {
       clientSecret,
       contentType,
       provider,
-      redirectUri
+      redirectUri,
+      autoRefresh = false
     } = this.props
     const grantType = 'authorization_code'
 
@@ -211,7 +216,55 @@ export class AuthService<TIDToken = JWTIDToken> {
     this.removeItem('pkce')
     const json = await response.json()
     this.setAuthTokens(json as AuthTokens)
+    console.log(autoRefresh)
+    if (autoRefresh) {
+      this.startTimer()
+    }
     return json
+  }
+
+  armRefreshTimer(refreshToken: string, timeoutDuration: number) {
+    const { refreshSlack = 10 } = this.props
+    window.setTimeout(() => {
+      this.fetchToken(refreshToken, true)
+        .then(({ refresh_token: newRefreshToken, expires_in: expiresIn }) => {
+          const now = new Date().getTime()
+          const expiresAt = now + (expiresIn - refreshSlack) * 1000
+          const timeout = expiresAt - now
+          if (timeout > 0) {
+            this.armRefreshTimer(newRefreshToken, timeout)
+          } else {
+            this.removeItem('auth')
+            this.removeCodeFromLocation()
+          }
+        })
+        .catch((e) => {
+          this.removeItem('auth')
+          this.removeCodeFromLocation()
+          console.warn({ e })
+        })
+    }, timeoutDuration)
+  }
+
+  startTimer(): void {
+    const { refreshSlack = 10 } = this.props
+    const authTokens = this.getAuthTokens()
+    if (!authTokens) {
+      return
+    }
+    const { refresh_token: refreshToken, expires_in: expiresIn } = authTokens
+    if (!expiresIn || !refreshToken) {
+      return
+    }
+    const now = new Date().getTime()
+    const expiresAt = now + (expiresIn - refreshSlack) * 1000
+    const timeout = expiresAt - now
+    if (timeout > 0) {
+      this.armRefreshTimer(refreshToken, timeout)
+    } else {
+      this.removeItem('auth')
+      this.removeCodeFromLocation()
+    }
   }
 
   restoreUri(): void {
