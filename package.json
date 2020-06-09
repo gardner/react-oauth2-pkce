@@ -29,8 +29,7 @@
     "test:unit": "cross-env CI=1 react-scripts test --env=jsdom",
     "test:watch": "react-scripts test --env=jsdom",
     "predeploy": "cd example && npm install && npm run build",
-    "deploy": "gh-pages -d example/build",
-    "postinstall": "npm install && npm run build"
+    "deploy": "gh-pages -d example/build"
   },
   "peerDependencies": {
     "react": ">=16.8.0",
@@ -69,6 +68,9 @@
     "react-scripts": "^3.4.1",
     "typescript": "^3.7.5"
   },
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "jwt-decode": "^2.2.0"
   }
