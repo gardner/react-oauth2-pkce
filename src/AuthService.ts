@@ -38,7 +38,7 @@ export interface TokenRequestBody {
   codeVerifier?: string
 }
 
-export class AuthService {
+export class AuthService<TIDToken = JWTIDToken> {
   props: AuthServiceProps
 
   constructor(props: AuthServiceProps) {
@@ -61,7 +61,7 @@ export class AuthService {
   getUser(): {} {
     const t = this.getAuthTokens()
     if (null === t) return {}
-    const decoded = jwtDecode(t.id_token) as {}
+    const decoded = jwtDecode(t.id_token) as TIDToken
     return decoded
   }
 
@@ -213,37 +213,6 @@ export class AuthService {
     this.setAuthTokens(json as AuthTokens)
     return json
   }
-
-  // async refreshToken(refreshToken: string): Promise<AuthTokens> {
-  //   const {
-  //     clientId,
-  //     clientSecret,
-  //     contentType,
-  //     provider,
-  //     redirectUri
-  //   } = this.props
-  //   const grantType = 'refresh_token'
-  //   const payload = {
-  //     clientId,
-  //     ...(clientSecret ? { clientSecret } : {}),
-  //     // eslint-disable-next-line @typescript-eslint/camelcase
-  //     refresh_token: refreshToken,
-  //     grantType,
-  //     redirectUri
-  //   }
-  //   const response = await fetch(`${provider}/token`, {
-  //     headers: {
-  //       'Content-Type': contentType || 'application/x-www-form-urlencoded'
-  //     },
-  //     method: 'POST',
-  //     body: toUrlEncoded(payload)
-  //   })
-  //   this.removeItem('pkce')
-  //   this.removeItem('auth')
-  //   const json = await response.json()
-  //   this.setAuthTokens(json as AuthTokens)
-  //   return json
-  // }
 
   restoreUri(): void {
     const uri = window.localStorage.getItem('preAuthUri')
