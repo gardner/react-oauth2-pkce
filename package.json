@@ -30,7 +30,7 @@
     "test:watch": "react-scripts test --env=jsdom",
     "predeploy": "cd example && npm install && npm run build",
     "deploy": "gh-pages -d example/build",
-    "postinstall": "cd ./node_modules/react-oauth2-pkce && npm run build"
+    "postinstall": "npm run build"
   },
   "peerDependencies": {
     "react": ">=16.8.0",
