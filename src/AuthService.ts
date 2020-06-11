@@ -42,6 +42,7 @@ export interface TokenRequestBody {
 
 export class AuthService<TIDToken = JWTIDToken> {
   props: AuthServiceProps
+  timeout?: number
 
   constructor(props: AuthServiceProps) {
     this.props = props
@@ -216,7 +217,6 @@ export class AuthService<TIDToken = JWTIDToken> {
     this.removeItem('pkce')
     const json = await response.json()
     this.setAuthTokens(json as AuthTokens)
-    console.log(autoRefresh)
     if (autoRefresh) {
       this.startTimer()
     }
@@ -225,7 +225,10 @@ export class AuthService<TIDToken = JWTIDToken> {
 
   armRefreshTimer(refreshToken: string, timeoutDuration: number) {
     const { refreshSlack = 10 } = this.props
-    window.setTimeout(() => {
+    if (this.timeout) {
+      clearTimeout(this.timeout)
+    }
+    this.timeout = window.setTimeout(() => {
       this.fetchToken(refreshToken, true)
         .then(({ refresh_token: newRefreshToken, expires_in: expiresIn }) => {
           const now = new Date().getTime()
