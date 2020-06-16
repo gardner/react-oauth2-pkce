@@ -11,6 +11,8 @@ export interface AuthServiceProps {
   provider: string
   redirectUri?: string
   scopes: string[]
+  autoRefresh?: boolean
+  refreshSlack?: number
 }
 
 export interface AuthTokens {
@@ -28,8 +30,19 @@ export interface JWTIDToken {
   email: string
 }
 
-export class AuthService {
+export interface TokenRequestBody {
+  clientId: string
+  grantType: string
+  redirectUri?: string
+  refresh_token?: string
+  clientSecret?: string
+  code?: string
+  codeVerifier?: string
+}
+
+export class AuthService<TIDToken = JWTIDToken> {
   props: AuthServiceProps
+  timeout?: number
 
   constructor(props: AuthServiceProps) {
     this.props = props
@@ -45,13 +58,15 @@ export class AuthService {
           this.removeCodeFromLocation()
           console.warn({ e })
         })
+    } else if (this.props.autoRefresh) {
+      this.startTimer()
     }
   }
 
   getUser(): {} {
     const t = this.getAuthTokens()
     if (null === t) return {}
-    const decoded = jwtDecode(t.id_token) as {}
+    const decoded = jwtDecode(t.id_token) as TIDToken
     return decoded
   }
 
@@ -158,25 +173,38 @@ export class AuthService {
   }
 
   // this happens after a full page reload. Read the code from localstorage
-  async fetchToken(code: string): Promise<AuthTokens> {
+  async fetchToken(code: string, isRefresh = false): Promise<AuthTokens> {
     const {
       clientId,
       clientSecret,
       contentType,
       provider,
-      redirectUri
+      redirectUri,
+      autoRefresh = false
     } = this.props
     const grantType = 'authorization_code'
-    const pkce: PKCECodePair = this.getPkce()
-    const codeVerifier = pkce.codeVerifier
 
-    const payload = {
+    let payload: TokenRequestBody = {
       clientId,
       ...(clientSecret ? { clientSecret } : {}),
-      code,
       redirectUri,
-      grantType,
-      codeVerifier
+      grantType
+    }
+    if (isRefresh) {
+      payload = {
+        ...payload,
+        grantType: 'refresh_token',
+        // eslint-disable-next-line @typescript-eslint/camelcase
+        refresh_token: code
+      }
+    } else {
+      const pkce: PKCECodePair = this.getPkce()
+      const codeVerifier = pkce.codeVerifier
+      payload = {
+        ...payload,
+        code,
+        codeVerifier
+      }
     }
 
     const response = await fetch(`${provider}/token`, {
@@ -189,7 +217,57 @@ export class AuthService {
     this.removeItem('pkce')
     const json = await response.json()
     this.setAuthTokens(json as AuthTokens)
+    if (autoRefresh) {
+      this.startTimer()
+    }
     return json
+  }
+
+  armRefreshTimer(refreshToken: string, timeoutDuration: number) {
+    const { refreshSlack = 10 } = this.props
+    if (this.timeout) {
+      clearTimeout(this.timeout)
+    }
+    this.timeout = window.setTimeout(() => {
+      this.fetchToken(refreshToken, true)
+        .then(({ refresh_token: newRefreshToken, expires_in: expiresIn }) => {
+          const now = new Date().getTime()
+          const expiresAt = now + (expiresIn - refreshSlack) * 1000
+          const timeout = expiresAt - now
+          if (timeout > 0) {
+            this.armRefreshTimer(newRefreshToken, timeout)
+          } else {
+            this.removeItem('auth')
+            this.removeCodeFromLocation()
+          }
+        })
+        .catch((e) => {
+          this.removeItem('auth')
+          this.removeCodeFromLocation()
+          console.warn({ e })
+        })
+    }, timeoutDuration)
+  }
+
+  startTimer(): void {
+    const { refreshSlack = 10 } = this.props
+    const authTokens = this.getAuthTokens()
+    if (!authTokens) {
+      return
+    }
+    const { refresh_token: refreshToken, expires_in: expiresIn } = authTokens
+    if (!expiresIn || !refreshToken) {
+      return
+    }
+    const now = new Date().getTime()
+    const expiresAt = now + (expiresIn - refreshSlack) * 1000
+    const timeout = expiresAt - now
+    if (timeout > 0) {
+      this.armRefreshTimer(refreshToken, timeout)
+    } else {
+      this.removeItem('auth')
+      this.removeCodeFromLocation()
+    }
   }
 
   restoreUri(): void {
