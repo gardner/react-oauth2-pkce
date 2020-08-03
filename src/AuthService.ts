@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/camelcase */
 import { createPKCECodes, PKCECodePair } from './pkce'
 import { toUrlEncoded } from './util'
 
@@ -20,6 +21,7 @@ export interface AuthTokens {
   access_token: string
   refresh_token: string
   expires_in: number
+  expires_at?: number // calculated on login
   token_type: string
 }
 
@@ -118,7 +120,11 @@ export class AuthService<TIDToken = JWTIDToken> {
       return JSON.parse(pkce)
     }
   }
+
   setAuthTokens(auth: AuthTokens): void {
+    const { refreshSlack = 5 } = this.props
+    const now = new Date().getTime()
+    auth.expires_at = now + (auth.expires_in + refreshSlack) * 1000
     window.localStorage.setItem('auth', JSON.stringify(auth))
   }
 
@@ -180,7 +186,7 @@ export class AuthService<TIDToken = JWTIDToken> {
       contentType,
       provider,
       redirectUri,
-      autoRefresh = false
+      autoRefresh = true
     } = this.props
     const grantType = 'authorization_code'
 
@@ -194,7 +200,6 @@ export class AuthService<TIDToken = JWTIDToken> {
       payload = {
         ...payload,
         grantType: 'refresh_token',
-        // eslint-disable-next-line @typescript-eslint/camelcase
         refresh_token: code
       }
     } else {
@@ -220,19 +225,18 @@ export class AuthService<TIDToken = JWTIDToken> {
     if (autoRefresh) {
       this.startTimer()
     }
-    return json
+    return this.getAuthTokens()
   }
 
-  armRefreshTimer(refreshToken: string, timeoutDuration: number) {
-    const { refreshSlack = 10 } = this.props
+  armRefreshTimer(refreshToken: string, timeoutDuration: number): void {
     if (this.timeout) {
       clearTimeout(this.timeout)
     }
     this.timeout = window.setTimeout(() => {
       this.fetchToken(refreshToken, true)
-        .then(({ refresh_token: newRefreshToken, expires_in: expiresIn }) => {
+        .then(({ refresh_token: newRefreshToken, expires_at: expiresAt }) => {
+          if (!expiresAt) return
           const now = new Date().getTime()
-          const expiresAt = now + (expiresIn - refreshSlack) * 1000
           const timeout = expiresAt - now
           if (timeout > 0) {
             this.armRefreshTimer(newRefreshToken, timeout)
@@ -250,17 +254,15 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   startTimer(): void {
-    const { refreshSlack = 10 } = this.props
     const authTokens = this.getAuthTokens()
     if (!authTokens) {
       return
     }
-    const { refresh_token: refreshToken, expires_in: expiresIn } = authTokens
-    if (!expiresIn || !refreshToken) {
+    const { refresh_token: refreshToken, expires_at: expiresAt } = authTokens
+    if (!expiresAt || !refreshToken) {
       return
     }
     const now = new Date().getTime()
-    const expiresAt = now + (expiresIn - refreshSlack) * 1000
     const timeout = expiresAt - now
     if (timeout > 0) {
       this.armRefreshTimer(refreshToken, timeout)
