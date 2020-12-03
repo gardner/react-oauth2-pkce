@@ -166,7 +166,7 @@ export class AuthService<TIDToken = JWTIDToken> {
 
     const query = {
       clientId,
-      scopes: scopes.join(' '),
+      scope: scopes.join(' '),
       responseType: 'code',
       redirectUri,
       codeChallenge,
