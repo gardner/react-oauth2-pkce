@@ -220,7 +220,10 @@ export class AuthService<TIDToken = JWTIDToken> {
       body: toUrlEncoded(payload)
     })
     this.removeItem('pkce')
-    const json = await response.json()
+    let json = await response.json()
+    if (isRefresh && !json.refresh_token) {
+      json.refresh_token = payload.refresh_token
+    }
     this.setAuthTokens(json as AuthTokens)
     if (autoRefresh) {
       this.startTimer()
