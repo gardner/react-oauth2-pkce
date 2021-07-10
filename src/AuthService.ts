@@ -10,6 +10,8 @@ export interface AuthServiceProps {
   contentType?: string
   location: Location
   provider: string
+  authorizeEndpoint: string
+  tokenEndpoint: string
   redirectUri?: string
   scopes: string[]
   autoRefresh?: boolean
@@ -156,7 +158,7 @@ export class AuthService<TIDToken = JWTIDToken> {
 
   // this will do a full page reload and to to the OAuth2 provider's login page and then redirect back to redirectUri
   authorize(): boolean {
-    const { clientId, provider, redirectUri, scopes } = this.props
+    const { clientId, provider, authorizeEndpoint, redirectUri, scopes } = this.props
 
     const pkce = createPKCECodes()
     window.localStorage.setItem('pkce', JSON.stringify(pkce))
@@ -173,7 +175,7 @@ export class AuthService<TIDToken = JWTIDToken> {
       codeChallengeMethod: 'S256'
     }
     // Responds with a 302 redirect
-    const url = `${provider}/authorize?${toUrlEncoded(query)}`
+    const url = `${authorizeEndpoint || `${provider}/authorize`}?${toUrlEncoded(query)}`
     window.location.replace(url)
     return true
   }
@@ -185,6 +187,7 @@ export class AuthService<TIDToken = JWTIDToken> {
       clientSecret,
       contentType,
       provider,
+      tokenEndpoint,
       redirectUri,
       autoRefresh = true
     } = this.props
@@ -212,7 +215,7 @@ export class AuthService<TIDToken = JWTIDToken> {
       }
     }
 
-    const response = await fetch(`${provider}/token`, {
+    const response = await fetch(`${tokenEndpoint || `${provider}/token`}`, {
       headers: {
         'Content-Type': contentType || 'application/x-www-form-urlencoded'
       },
