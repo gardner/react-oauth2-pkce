@@ -10,8 +10,8 @@ export interface AuthServiceProps {
   contentType?: string
   location: Location
   provider: string
-  authorizeEndpoint: string
-  tokenEndpoint: string
+  authorizeEndpoint?: string
+  tokenEndpoint?: string
   redirectUri?: string
   scopes: string[]
   autoRefresh?: boolean
