@@ -37,6 +37,10 @@ const App = () => {
 export default App
 ```
 
+### Custom Provider/Endpoint
+
+After https://github.com/gardner/react-oauth2-pkce/pull/16 it is possible to pass in just `provider` or `authorizeEndpoint` and `tokenEndpoint`. These two parameters were added to maintain backwards compatibility while enabling callers to customize the endpoint.
+
 ## License
 
 MIT © [Gardner Bickford](https://github.com/gardner)
