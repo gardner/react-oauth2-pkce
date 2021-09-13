@@ -12,6 +12,7 @@ export interface AuthServiceProps {
   provider: string
   authorizeEndpoint?: string
   tokenEndpoint?: string
+  audience?: string
   redirectUri?: string
   scopes: string[]
   autoRefresh?: boolean
@@ -158,7 +159,7 @@ export class AuthService<TIDToken = JWTIDToken> {
 
   // this will do a full page reload and to to the OAuth2 provider's login page and then redirect back to redirectUri
   authorize(): boolean {
-    const { clientId, provider, authorizeEndpoint, redirectUri, scopes } = this.props
+    const { clientId, provider, authorizeEndpoint, redirectUri, scopes, audience } = this.props
 
     const pkce = createPKCECodes()
     window.localStorage.setItem('pkce', JSON.stringify(pkce))
@@ -171,6 +172,7 @@ export class AuthService<TIDToken = JWTIDToken> {
       scope: scopes.join(' '),
       responseType: 'code',
       redirectUri,
+      ...(audience && { audience }),
       codeChallenge,
       codeChallengeMethod: 'S256'
     }
