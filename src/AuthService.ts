@@ -12,6 +12,7 @@ export interface AuthServiceProps {
   provider: string
   authorizeEndpoint?: string
   tokenEndpoint?: string
+  logoutEndpoint?: string
   audience?: string
   redirectUri?: string
   scopes: string[]
@@ -146,11 +147,22 @@ export class AuthService<TIDToken = JWTIDToken> {
     return window.localStorage.getItem('auth') !== null
   }
 
-  async logout(): Promise<boolean> {
+  async logout(shouldEndSession: boolean = false): Promise<boolean> {
     this.removeItem('pkce')
     this.removeItem('auth')
-    window.location.reload()
-    return true
+    if (shouldEndSession) {
+      const { clientId, provider, logoutEndpoint, redirectUri } = this.props;
+      const query = {
+        client_id: clientId,
+        post_logout_redirect_uri: redirectUri
+      }
+      const url = `${logoutEndpoint || `${provider}/logout`}?${toUrlEncoded(query)}`
+      window.location.replace(url)
+      return true;
+    } else {
+      window.location.reload()
+      return true
+    }
   }
 
   async login(): Promise<void> {
