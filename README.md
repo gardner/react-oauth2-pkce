@@ -39,7 +39,10 @@ export default App
 
 ### Custom Provider/Endpoint
 
-After https://github.com/gardner/react-oauth2-pkce/pull/16 it is possible to pass in just `provider` or `authorizeEndpoint` and `tokenEndpoint`. These two parameters were added to maintain backwards compatibility while enabling callers to customize the endpoint.
+After https://github.com/gardner/react-oauth2-pkce/pull/16 it is possible to pass in just `provider` or `authorizeEndpoint`, `tokenEndpoint` and `logoutEndpoint`. These two parameters were added to maintain backwards compatibility while enabling callers to customize the endpoint.
+
+### End User Session on "Single Application Logout"
+You can end user session when calling `logout(true)`. A custom endpoint can configured by passing `logoutEndpoint` as props. The user will be redirected to the `redirectUri`.
 
 ## License
 
