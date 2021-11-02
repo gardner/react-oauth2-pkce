@@ -156,7 +156,10 @@ export class AuthService<TIDToken = JWTIDToken> {
         client_id: clientId,
         post_logout_redirect_uri: redirectUri
       }
-      const url = `${logoutEndpoint || `${provider}/logout`}?${toUrlEncoded(query)}`
+      const logoutUrl = `${logoutEndpoint || `${provider}/logout`}`;
+      // Check if the url already contains at least one parameter
+      const separator = new RegExp('^.*\?.+=.+$').test(logoutUrl) ?  '&' : '?';
+      const url = logoutUrl + separator + toUrlEncoded(query);
       window.location.replace(url)
       return true;
     } else {
@@ -189,7 +192,10 @@ export class AuthService<TIDToken = JWTIDToken> {
       codeChallengeMethod: 'S256'
     }
     // Responds with a 302 redirect
-    const url = `${authorizeEndpoint || `${provider}/authorize`}?${toUrlEncoded(query)}`
+    const authorizeUrl = `${authorizeEndpoint || `${provider}/authorize`}`;
+    // Check if the url already contains at least one parameter
+    const separator = new RegExp('^.*\?.+=.+$').test(authorizeUrl) ?  '&' : '?';
+    const url = authorizeUrl + separator + toUrlEncoded(query);
     window.location.replace(url)
     return true
   }
