@@ -4,7 +4,7 @@
   "description": "Authenticate against generic OAuth2 using PKCE",
   "author": "Gardner Bickford <gardner@bickford.nz>",
   "license": "MIT",
-  "repository": "gardner/react-oauth2-pkce",
+  "repository": "STACK-Fintech/react-oauth2-pkce",
   "main": "dist/index.js",
   "module": "dist/index.modern.js",
   "source": "src/index.tsx",
