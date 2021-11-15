@@ -15,7 +15,6 @@
     "cognito",
     "gatsby"
   ],
-  "private": "true",
   "engines": {
     "node": ">=10"
   },
