@@ -170,8 +170,9 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   // this will do a full page reload and to to the OAuth2 provider's login page and then redirect back to redirectUri
-  authorize(): boolean {
-    const { clientId, provider, authorizeEndpoint, redirectUri, scopes, audience } = this.props
+  authorize(arg?: any): boolean {
+    const { clientId, provider, authorizeEndpoint, redirectUri, scopes, audience, state } = arg ? arg : this.props;
+
 
     const pkce = createPKCECodes()
     window.localStorage.setItem('pkce', JSON.stringify(pkce))
@@ -186,7 +187,8 @@ export class AuthService<TIDToken = JWTIDToken> {
       redirectUri,
       ...(audience && { audience }),
       codeChallenge,
-      codeChallengeMethod: 'S256'
+      codeChallengeMethod: 'S256',
+      state: state
     }
     // Responds with a 302 redirect
     const url = `${authorizeEndpoint || `${provider}/authorize`}?${toUrlEncoded(query)}`
