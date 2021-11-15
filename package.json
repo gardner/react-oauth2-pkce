@@ -1,5 +1,5 @@
 {
-  "name": "react-oauth2-pkce",
+  "name": "@stack-fintech/react-oauth2-pkce",
   "version": "2.0.7",
   "description": "Authenticate against generic OAuth2 using PKCE",
   "author": "Gardner Bickford <gardner@bickford.nz>",
