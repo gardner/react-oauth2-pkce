@@ -18,7 +18,7 @@ export const Home = () => {
   if (!authService.isAuthenticated()) {
     return (
       <div>
-        <p>Not Logged in yet: {authTokens.idToken} </p>
+        <p>Not Logged in yet: {authTokens.id_token} </p>
         <button onClick={login}>Login</button>
       </div>
     )
@@ -26,7 +26,7 @@ export const Home = () => {
 
   return (
     <div>
-      <p>Logged in! {authTokens.idToken}</p>
+      <p>Logged in! {authTokens.id_token}</p>
       <button onClick={logout}>Logout</button>
     </div>
   )
