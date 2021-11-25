@@ -4,7 +4,7 @@ import { toUrlEncoded } from './util'
 
 import jwtDecode from 'jwt-decode'
 
-export interface AuthServiceProps {
+export interface AuthServiceProp {
   clientId: string
   clientSecret?: string
   contentType?: string
@@ -18,6 +18,10 @@ export interface AuthServiceProps {
   scopes: string[]
   autoRefresh?: boolean
   refreshSlack?: number
+  state?: string
+}
+export interface AuthServiceProps {
+  [key: string]: AuthServiceProp
 }
 
 export interface AuthTokens {
@@ -53,8 +57,9 @@ export class AuthService<TIDToken = JWTIDToken> {
   constructor(props: AuthServiceProps) {
     this.props = props
     const code = this.getCodeFromLocation(window.location)
-    if (code !== null) {
-      this.fetchToken(code)
+    const clientId = this.getClientIdFromLocation(window.location)
+    if (code !== null && clientId !== null) {
+      this.fetchToken(clientId, code)
         .then(() => {
           this.restoreUri()
         })
@@ -62,10 +67,11 @@ export class AuthService<TIDToken = JWTIDToken> {
           this.removeItem('pkce')
           this.removeItem('auth')
           this.removeCodeFromLocation()
+          this.removeStateFromLocation()
           console.warn({ e })
         })
-    } else if (this.props.autoRefresh) {
-      this.startTimer()
+    } else if (this.props.autoRefresh && clientId !== null) {
+      this.startTimer(clientId)
     }
   }
 
@@ -91,6 +97,21 @@ export class AuthService<TIDToken = JWTIDToken> {
     return null
   }
 
+  getClientIdFromLocation(location: Location): string | null {
+    const split = location.toString().split('?')
+    if (split.length < 2) {
+      return null
+    }
+    const pairs = split[1].split('&')
+    for (const pair of pairs) {
+      const [key, value] = pair.split('=')
+      if (key === 'state') {
+        return decodeURIComponent(value || '')
+      }
+    }
+    return null
+  }
+
   removeCodeFromLocation(): void {
     const [base, search] = window.location.href.split('?')
     if (!search) {
@@ -100,6 +121,24 @@ export class AuthService<TIDToken = JWTIDToken> {
       .split('&')
       .map((param) => param.split('='))
       .filter(([key]) => key !== 'code')
+      .map((keyAndVal) => keyAndVal.join('='))
+      .join('&')
+    window.history.replaceState(
+      window.history.state,
+      'null',
+      base + (newSearch.length ? `?${newSearch}` : '')
+    )
+  }
+
+  removeStateFromLocation(): void {
+    const [base, search] = window.location.href.split('?')
+    if (!search) {
+      return
+    }
+    const newSearch = search
+      .split('&')
+      .map((param) => param.split('='))
+      .filter(([key]) => key !== 'state')
       .map((keyAndVal) => keyAndVal.join('='))
       .join('&')
     window.history.replaceState(
@@ -125,8 +164,8 @@ export class AuthService<TIDToken = JWTIDToken> {
     }
   }
 
-  setAuthTokens(auth: AuthTokens): void {
-    const { refreshSlack = 5 } = this.props
+  setAuthTokens(clientId: string, auth: AuthTokens): void {
+    const { refreshSlack = 5 } = this.props[clientId]
     const now = new Date().getTime()
     auth.expires_at = now + (auth.expires_in + refreshSlack) * 1000
     window.localStorage.setItem('auth', JSON.stringify(auth))
@@ -147,32 +186,40 @@ export class AuthService<TIDToken = JWTIDToken> {
     return window.localStorage.getItem('auth') !== null
   }
 
-  async logout(shouldEndSession: boolean = false): Promise<boolean> {
+  async logout(clientId?: string, shouldEndSession = false): Promise<boolean> {
     this.removeItem('pkce')
     this.removeItem('auth')
-    if (shouldEndSession) {
-      const { clientId, provider, logoutEndpoint, redirectUri } = this.props;
+    if (shouldEndSession && clientId) {
+      const { provider, logoutEndpoint, redirectUri } = this.props[clientId]
       const query = {
         client_id: clientId,
         post_logout_redirect_uri: redirectUri
       }
-      const url = `${logoutEndpoint || `${provider}/logout`}?${toUrlEncoded(query)}`
+      const url = `${logoutEndpoint || `${provider}/logout`}?${toUrlEncoded(
+        query
+      )}`
       window.location.replace(url)
-      return true;
+      return true
     } else {
       window.location.reload()
       return true
     }
   }
 
-  async login(): Promise<void> {
-    this.authorize()
+  async login(clientId: string): Promise<void> {
+    this.authorize(clientId)
   }
 
   // this will do a full page reload and to to the OAuth2 provider's login page and then redirect back to redirectUri
-  authorize(arg?: any): boolean {
-    const { clientId, provider, authorizeEndpoint, redirectUri, scopes, audience, state } = arg ? arg : this.props;
-
+  authorize(clientId: string): boolean {
+    const {
+      provider,
+      authorizeEndpoint,
+      redirectUri,
+      scopes,
+      audience,
+      state
+    } = this.props[clientId]
 
     const pkce = createPKCECodes()
     window.localStorage.setItem('pkce', JSON.stringify(pkce))
@@ -191,22 +238,27 @@ export class AuthService<TIDToken = JWTIDToken> {
       state: state
     }
     // Responds with a 302 redirect
-    const url = `${authorizeEndpoint || `${provider}/authorize`}?${toUrlEncoded(query)}`
+    const url = `${authorizeEndpoint || `${provider}/authorize`}?${toUrlEncoded(
+      query
+    )}`
     window.location.replace(url)
     return true
   }
 
   // this happens after a full page reload. Read the code from localstorage
-  async fetchToken(code: string, isRefresh = false): Promise<AuthTokens> {
+  async fetchToken(
+    clientId: string,
+    code: string,
+    isRefresh = false
+  ): Promise<AuthTokens> {
     const {
-      clientId,
       clientSecret,
       contentType,
       provider,
       tokenEndpoint,
       redirectUri,
       autoRefresh = true
-    } = this.props
+    } = this.props[clientId]
     const grantType = 'authorization_code'
 
     let payload: TokenRequestBody = {
@@ -239,43 +291,49 @@ export class AuthService<TIDToken = JWTIDToken> {
       body: toUrlEncoded(payload)
     })
     this.removeItem('pkce')
-    let json = await response.json()
+    const json = await response.json()
     if (isRefresh && !json.refresh_token) {
       json.refresh_token = payload.refresh_token
     }
-    this.setAuthTokens(json as AuthTokens)
+    this.setAuthTokens(clientId, json as AuthTokens)
     if (autoRefresh) {
-      this.startTimer()
+      this.startTimer(clientId)
     }
     return this.getAuthTokens()
   }
 
-  armRefreshTimer(refreshToken: string, timeoutDuration: number): void {
+  armRefreshTimer(
+    clientId: string,
+    refreshToken: string,
+    timeoutDuration: number
+  ): void {
     if (this.timeout) {
       clearTimeout(this.timeout)
     }
     this.timeout = window.setTimeout(() => {
-      this.fetchToken(refreshToken, true)
+      this.fetchToken(clientId, refreshToken, true)
         .then(({ refresh_token: newRefreshToken, expires_at: expiresAt }) => {
           if (!expiresAt) return
           const now = new Date().getTime()
           const timeout = expiresAt - now
           if (timeout > 0) {
-            this.armRefreshTimer(newRefreshToken, timeout)
+            this.armRefreshTimer(clientId, newRefreshToken, timeout)
           } else {
             this.removeItem('auth')
             this.removeCodeFromLocation()
+            this.removeStateFromLocation()
           }
         })
         .catch((e) => {
           this.removeItem('auth')
           this.removeCodeFromLocation()
+          this.removeStateFromLocation()
           console.warn({ e })
         })
     }, timeoutDuration)
   }
 
-  startTimer(): void {
+  startTimer(clientId: string): void {
     const authTokens = this.getAuthTokens()
     if (!authTokens) {
       return
@@ -287,7 +345,7 @@ export class AuthService<TIDToken = JWTIDToken> {
     const now = new Date().getTime()
     const timeout = expiresAt - now
     if (timeout > 0) {
-      this.armRefreshTimer(refreshToken, timeout)
+      this.armRefreshTimer(clientId, refreshToken, timeout)
     } else {
       this.removeItem('auth')
       this.removeCodeFromLocation()
