@@ -56,8 +56,8 @@ export class AuthService<TIDToken = JWTIDToken> {
 
   constructor(props: AuthServiceProps) {
     this.props = props
-    const code = this.getCodeFromLocation(window.location)
-    const clientId = this.getClientIdFromLocation(window.location)
+    const code = this.getValueFromLocation('code', window.location)
+    const clientId = this.getValueFromLocation('state', window.location)
     if (code !== null && clientId !== null) {
       this.fetchToken(clientId, code)
         .then(() => {
@@ -82,7 +82,7 @@ export class AuthService<TIDToken = JWTIDToken> {
     return decoded
   }
 
-  getCodeFromLocation(location: Location): string | null {
+  getValueFromLocation(keyToSearch: string, location: Location): string | null {
     const split = location.toString().split('?')
     if (split.length < 2) {
       return null
@@ -90,22 +90,7 @@ export class AuthService<TIDToken = JWTIDToken> {
     const pairs = split[1].split('&')
     for (const pair of pairs) {
       const [key, value] = pair.split('=')
-      if (key === 'code') {
-        return decodeURIComponent(value || '')
-      }
-    }
-    return null
-  }
-
-  getClientIdFromLocation(location: Location): string | null {
-    const split = location.toString().split('?')
-    if (split.length < 2) {
-      return null
-    }
-    const pairs = split[1].split('&')
-    for (const pair of pairs) {
-      const [key, value] = pair.split('=')
-      if (key === 'state') {
+      if (key === keyToSearch) {
         return decodeURIComponent(value || '')
       }
     }
@@ -113,24 +98,14 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   removeCodeFromLocation(): void {
-    const [base, search] = window.location.href.split('?')
-    if (!search) {
-      return
-    }
-    const newSearch = search
-      .split('&')
-      .map((param) => param.split('='))
-      .filter(([key]) => key !== 'code')
-      .map((keyAndVal) => keyAndVal.join('='))
-      .join('&')
-    window.history.replaceState(
-      window.history.state,
-      'null',
-      base + (newSearch.length ? `?${newSearch}` : '')
-    )
+    this.removeQueryParamFromLocation('code')
   }
 
   removeStateFromLocation(): void {
+    this.removeQueryParamFromLocation('state')
+  }
+
+  removeQueryParamFromLocation(keyToRemove: string): void {
     const [base, search] = window.location.href.split('?')
     if (!search) {
       return
@@ -138,7 +113,7 @@ export class AuthService<TIDToken = JWTIDToken> {
     const newSearch = search
       .split('&')
       .map((param) => param.split('='))
-      .filter(([key]) => key !== 'state')
+      .filter(([key]) => key !== keyToRemove)
       .map((keyAndVal) => keyAndVal.join('='))
       .join('&')
     window.history.replaceState(
