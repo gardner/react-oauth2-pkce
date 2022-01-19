@@ -128,7 +128,7 @@ export class AuthService<TIDToken = JWTIDToken> {
   setAuthTokens(auth: AuthTokens): void {
     const { refreshSlack = 5 } = this.props
     const now = new Date().getTime()
-    auth.expires_at = now + (auth.expires_in + refreshSlack) * 1000
+    auth.expires_at = now + (+auth.expires_in + refreshSlack) * 1000
     window.localStorage.setItem('auth', JSON.stringify(auth))
   }
 
