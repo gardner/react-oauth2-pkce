@@ -46,6 +46,10 @@ export interface TokenRequestBody {
   codeVerifier?: string
 }
 
+export interface AuthOptions {
+  state?: string;
+}
+
 export class AuthService<TIDToken = JWTIDToken> {
   props: AuthServiceProps
   timeout?: number
@@ -165,12 +169,12 @@ export class AuthService<TIDToken = JWTIDToken> {
     }
   }
 
-  async login(): Promise<void> {
-    this.authorize()
+  async login(options?: AuthOptions): Promise<void> {
+    this.authorize(options)
   }
 
   // this will do a full page reload and to to the OAuth2 provider's login page and then redirect back to redirectUri
-  authorize(): boolean {
+  authorize(options?: AuthOptions): boolean {
     const { clientId, provider, authorizeEndpoint, redirectUri, scopes, audience } = this.props
 
     const pkce = createPKCECodes()
@@ -186,7 +190,8 @@ export class AuthService<TIDToken = JWTIDToken> {
       redirectUri,
       ...(audience && { audience }),
       codeChallenge,
-      codeChallengeMethod: 'S256'
+      codeChallengeMethod: 'S256',
+      ...(options && { ...options })
     }
     // Responds with a 302 redirect
     const url = `${authorizeEndpoint || `${provider}/authorize`}?${toUrlEncoded(query)}`
