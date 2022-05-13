@@ -18,6 +18,7 @@ export interface AuthServiceProps {
   scopes: string[]
   autoRefresh?: boolean
   refreshSlack?: number
+  onRedirectCallback?: (state?: string | null) => void;
 }
 
 export interface AuthTokens {
@@ -46,6 +47,10 @@ export interface TokenRequestBody {
   codeVerifier?: string
 }
 
+export interface AuthOptions {
+  state?: string;
+}
+
 export class AuthService<TIDToken = JWTIDToken> {
   props: AuthServiceProps
   timeout?: number
@@ -67,6 +72,20 @@ export class AuthService<TIDToken = JWTIDToken> {
     } else if (this.props.autoRefresh) {
       this.startTimer()
     }
+
+    this.tryInvokeRedirectCallback();
+  }
+
+  private tryInvokeRedirectCallback() {
+
+    // ensure we only call redirect after successful authorization
+    const postAuthRedirect = window.localStorage.getItem('postAuthRedirect');
+    if (this.props.onRedirectCallback && postAuthRedirect && this.isAuthenticated() === true) {
+      const state = window.localStorage.getItem('postAuthState')
+      window.localStorage.removeItem('postAuthState')
+      window.localStorage.removeItem('postAuthRedirect')
+      this.props.onRedirectCallback(state)
+    }
   }
 
   getUser(): {} {
@@ -77,6 +96,10 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   getCodeFromLocation(location: Location): string | null {
+    return this.getValueFromLocation(location, 'code');
+  }
+
+  getValueFromLocation(location: Location, name: string): string | null {
     const split = location.toString().split('?')
     if (split.length < 2) {
       return null
@@ -84,12 +107,13 @@ export class AuthService<TIDToken = JWTIDToken> {
     const pairs = split[1].split('&')
     for (const pair of pairs) {
       const [key, value] = pair.split('=')
-      if (key === 'code') {
+      if (key === name) {
         return decodeURIComponent(value || '')
       }
     }
     return null
   }
+
 
   removeCodeFromLocation(): void {
     const [base, search] = window.location.href.split('?')
@@ -165,12 +189,12 @@ export class AuthService<TIDToken = JWTIDToken> {
     }
   }
 
-  async login(): Promise<void> {
-    this.authorize()
+  async login(options?: AuthOptions): Promise<void> {
+    this.authorize(options)
   }
 
   // this will do a full page reload and to to the OAuth2 provider's login page and then redirect back to redirectUri
-  authorize(): boolean {
+  authorize(options?: AuthOptions): boolean {
     const { clientId, provider, authorizeEndpoint, redirectUri, scopes, audience } = this.props
 
     const pkce = createPKCECodes()
@@ -186,7 +210,8 @@ export class AuthService<TIDToken = JWTIDToken> {
       redirectUri,
       ...(audience && { audience }),
       codeChallenge,
-      codeChallengeMethod: 'S256'
+      codeChallengeMethod: 'S256',
+      ...(options && { ...options })
     }
     // Responds with a 302 redirect
     const url = `${authorizeEndpoint || `${provider}/authorize`}?${toUrlEncoded(query)}`
@@ -297,6 +322,16 @@ export class AuthService<TIDToken = JWTIDToken> {
     window.localStorage.removeItem('preAuthUri')
     console.log({ uri })
     if (uri !== null) {
+
+      const state = this.getValueFromLocation(location, 'state');
+      if (state) {
+        window.localStorage.setItem('postAuthState', state);
+      }
+
+      if (this.props.onRedirectCallback) {
+        window.localStorage.setItem('postAuthRedirect', "true");
+      }
+
       window.location.replace(uri)
     }
     this.removeCodeFromLocation()
