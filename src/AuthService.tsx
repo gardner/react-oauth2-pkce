@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/camelcase */
 import { createPKCECodes, PKCECodePair } from './pkce'
 import { toUrlEncoded } from './util'
 import jwt_decode from 'jwt-decode'
@@ -67,11 +66,13 @@ export class AuthService<TIDToken = JWTIDToken> {
     }
   }
 
-  getUser(): {} {
+  getUser(): TIDToken | null {
+    let result: TIDToken | null = null
     const t = this.getAuthTokens()
-    if (null === t) return {}
-    const decoded = jwt_decode(t.id_token) as TIDToken
-    return decoded
+    if (t) {
+      result = jwt_decode(t.id_token) as TIDToken
+    }
+    return result
   }
 
   getCodeFromLocation(location: Location): string | null {
@@ -145,7 +146,7 @@ export class AuthService<TIDToken = JWTIDToken> {
     return window.localStorage.getItem('auth') !== null
   }
 
-  logout(shouldEndSession: boolean = false): boolean {
+  logout(shouldEndSession = false): boolean {
     this.removeItem('pkce')
     this.removeItem('auth')
     if (shouldEndSession) {
@@ -239,15 +240,18 @@ export class AuthService<TIDToken = JWTIDToken> {
       }
     }
 
-    const response = await fetch(`${tokenEndpoint || `${provider}/token`}`, {
-      headers: {
-        'Content-Type': contentType || 'application/x-www-form-urlencoded'
-      },
-      method: 'POST',
-      body: toUrlEncoded(payload)
-    })
+    const response = await window.fetch(
+      `${tokenEndpoint || `${provider}/token`}`,
+      {
+        headers: {
+          'Content-Type': contentType || 'application/x-www-form-urlencoded'
+        },
+        method: 'POST',
+        body: toUrlEncoded(payload)
+      }
+    )
     this.removeItem('pkce')
-    let json = await response.json()
+    const json = await response.json()
     if (isRefresh && !json.refresh_token) {
       json.refresh_token = payload.refresh_token
     }

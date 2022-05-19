@@ -9,12 +9,11 @@ const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
  * @returns encoded string
  */
 const encode = (arraybuffer: ArrayBuffer): string => {
-  let bytes = new Uint8Array(arraybuffer),
-    i,
-    len = bytes.length,
-    base64 = ''
+  const bytes = new Uint8Array(arraybuffer),
+    len = bytes.length
+  let base64 = ''
 
-  for (i = 0; i < len; i += 3) {
+  for (let i = 0; i < len; i += 3) {
     base64 += chars[bytes[i] >> 2]
     base64 += chars[((bytes[i] & 3) << 4) | (bytes[i + 1] >> 4)]
     base64 += chars[((bytes[i + 1] & 15) << 2) | (bytes[i + 2] >> 6)]
