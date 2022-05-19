@@ -110,14 +110,14 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   getItem(key: string): string | null {
-    return window.localStorage.getItem(key)
+    return window.sessionStorage.getItem(key)
   }
   removeItem(key: string): void {
-    window.localStorage.removeItem(key)
+    window.sessionStorage.removeItem(key)
   }
 
   getPkce(): PKCECodePair {
-    const pkce = window.localStorage.getItem('pkce')
+    const pkce = window.sessionStorage.getItem('pkce')
     if (null === pkce) {
       throw new Error('PKCE pair not found in local storage')
     } else {
@@ -129,22 +129,22 @@ export class AuthService<TIDToken = JWTIDToken> {
     const { refreshSlack = 5 } = this.props
     const now = new Date().getTime()
     auth.expires_at = now + (auth.expires_in + refreshSlack) * 1000
-    window.localStorage.setItem('auth', JSON.stringify(auth))
+    window.sessionStorage.setItem('auth', JSON.stringify(auth))
   }
 
   getAuthTokens(): AuthTokens {
-    return JSON.parse(window.localStorage.getItem('auth') || '{}')
+    return JSON.parse(window.sessionStorage.getItem('auth') || '{}')
   }
 
   isPending(): boolean {
     return (
-      window.localStorage.getItem('pkce') !== null &&
-      window.localStorage.getItem('auth') === null
+      window.sessionStorage.getItem('pkce') !== null &&
+      window.sessionStorage.getItem('auth') === null
     )
   }
 
   isAuthenticated(): boolean {
-    return window.localStorage.getItem('auth') !== null
+    return window.sessionStorage.getItem('auth') !== null
   }
 
   async logout(shouldEndSession: boolean = false): Promise<boolean> {
@@ -174,9 +174,9 @@ export class AuthService<TIDToken = JWTIDToken> {
     const { clientId, provider, authorizeEndpoint, redirectUri, scopes, audience } = this.props
 
     const pkce = createPKCECodes()
-    window.localStorage.setItem('pkce', JSON.stringify(pkce))
-    window.localStorage.setItem('preAuthUri', location.href)
-    window.localStorage.removeItem('auth')
+    window.sessionStorage.setItem('pkce', JSON.stringify(pkce))
+    window.sessionStorage.setItem('preAuthUri', location.href)
+    window.sessionStorage.removeItem('auth')
     const codeChallenge = pkce.codeChallenge
 
     const query = {
@@ -194,7 +194,7 @@ export class AuthService<TIDToken = JWTIDToken> {
     return true
   }
 
-  // this happens after a full page reload. Read the code from localstorage
+  // this happens after a full page reload. Read the code from sessionStorage
   async fetchToken(code: string, isRefresh = false): Promise<AuthTokens> {
     const {
       clientId,
@@ -293,8 +293,8 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   restoreUri(): void {
-    const uri = window.localStorage.getItem('preAuthUri')
-    window.localStorage.removeItem('preAuthUri')
+    const uri = window.sessionStorage.getItem('preAuthUri')
+    window.sessionStorage.removeItem('preAuthUri')
     console.log({ uri })
     if (uri !== null) {
       window.location.replace(uri)

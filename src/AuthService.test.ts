@@ -42,7 +42,7 @@ describe('AuthService', () => {
   })
 
   // it('it parses a token', () => {
-  //   window.localStorage.setItem('auth', tokens)
+  //   window.sessionStorage.setItem('auth', tokens)
   //   authService.getUser()
   // })
 })
