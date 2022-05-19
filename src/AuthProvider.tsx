@@ -1,7 +1,6 @@
-import React, { ReactElement, ReactNode } from 'react'
-
 import { AuthService } from './AuthService'
 import { AuthContext } from './AuthContext'
+import React, { ReactElement, ReactNode } from 'react'
 
 interface AuthProviderProps {
   children: ReactNode

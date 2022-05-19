@@ -1,14 +1,11 @@
-/* eslint-disable @typescript-eslint/camelcase */
 import { createPKCECodes, PKCECodePair } from './pkce'
 import { toUrlEncoded } from './util'
-
-import jwtDecode from 'jwt-decode'
+import jwt_decode from 'jwt-decode'
 
 export interface AuthServiceProps {
   clientId: string
   clientSecret?: string
   contentType?: string
-  location: Location
   provider: string
   authorizeEndpoint?: string
   tokenEndpoint?: string
@@ -69,11 +66,13 @@ export class AuthService<TIDToken = JWTIDToken> {
     }
   }
 
-  getUser(): {} {
+  getUser(): TIDToken | null {
+    let result: TIDToken | null = null
     const t = this.getAuthTokens()
-    if (null === t) return {}
-    const decoded = jwtDecode(t.id_token) as TIDToken
-    return decoded
+    if (t) {
+      result = jwt_decode(t.id_token) as TIDToken
+    }
+    return result
   }
 
   getCodeFromLocation(location: Location): string | null {
@@ -147,18 +146,20 @@ export class AuthService<TIDToken = JWTIDToken> {
     return window.localStorage.getItem('auth') !== null
   }
 
-  async logout(shouldEndSession: boolean = false): Promise<boolean> {
+  logout(shouldEndSession = false): boolean {
     this.removeItem('pkce')
     this.removeItem('auth')
     if (shouldEndSession) {
-      const { clientId, provider, logoutEndpoint, redirectUri } = this.props;
+      const { clientId, provider, logoutEndpoint, redirectUri } = this.props
       const query = {
         client_id: clientId,
         post_logout_redirect_uri: redirectUri
       }
-      const url = `${logoutEndpoint || `${provider}/logout`}?${toUrlEncoded(query)}`
+      const url = `${logoutEndpoint || `${provider}/logout`}?${toUrlEncoded(
+        query
+      )}`
       window.location.replace(url)
-      return true;
+      return true
     } else {
       window.location.reload()
       return true
@@ -170,14 +171,22 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   // this will do a full page reload and to to the OAuth2 provider's login page and then redirect back to redirectUri
-  authorize(): boolean {
-    const { clientId, provider, authorizeEndpoint, redirectUri, scopes, audience } = this.props
+  async authorize(): Promise<boolean> {
+    const {
+      clientId,
+      provider,
+      authorizeEndpoint,
+      redirectUri,
+      scopes,
+      audience
+    } = this.props
 
     const pkce = createPKCECodes()
+    // console.log(`pkce created: ${JSON.stringify(pkce)}`)
     window.localStorage.setItem('pkce', JSON.stringify(pkce))
     window.localStorage.setItem('preAuthUri', location.href)
     window.localStorage.removeItem('auth')
-    const codeChallenge = pkce.codeChallenge
+    const codeChallenge = await pkce.codeChallenge
 
     const query = {
       clientId,
@@ -189,7 +198,9 @@ export class AuthService<TIDToken = JWTIDToken> {
       codeChallengeMethod: 'S256'
     }
     // Responds with a 302 redirect
-    const url = `${authorizeEndpoint || `${provider}/authorize`}?${toUrlEncoded(query)}`
+    const url = `${authorizeEndpoint || `${provider}/authorize`}?${toUrlEncoded(
+      query
+    )}`
     window.location.replace(url)
     return true
   }
@@ -229,15 +240,18 @@ export class AuthService<TIDToken = JWTIDToken> {
       }
     }
 
-    const response = await fetch(`${tokenEndpoint || `${provider}/token`}`, {
-      headers: {
-        'Content-Type': contentType || 'application/x-www-form-urlencoded'
-      },
-      method: 'POST',
-      body: toUrlEncoded(payload)
-    })
+    const response = await window.fetch(
+      `${tokenEndpoint || `${provider}/token`}`,
+      {
+        headers: {
+          'Content-Type': contentType || 'application/x-www-form-urlencoded'
+        },
+        method: 'POST',
+        body: toUrlEncoded(payload)
+      }
+    )
     this.removeItem('pkce')
-    let json = await response.json()
+    const json = await response.json()
     if (isRefresh && !json.refresh_token) {
       json.refresh_token = payload.refresh_token
     }
@@ -295,7 +309,7 @@ export class AuthService<TIDToken = JWTIDToken> {
   restoreUri(): void {
     const uri = window.localStorage.getItem('preAuthUri')
     window.localStorage.removeItem('preAuthUri')
-    console.log({ uri })
+    // console.log({ uri })
     if (uri !== null) {
       window.location.replace(uri)
     }
