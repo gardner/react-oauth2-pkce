@@ -182,7 +182,7 @@ export class AuthService<TIDToken = JWTIDToken> {
     } = this.props
 
     const pkce = createPKCECodes()
-    console.log(`pkce created: ${pkce}`)
+    // console.log(`pkce created: ${JSON.stringify(pkce)}`)
     window.localStorage.setItem('pkce', JSON.stringify(pkce))
     window.localStorage.setItem('preAuthUri', location.href)
     window.localStorage.removeItem('auth')
@@ -309,7 +309,7 @@ export class AuthService<TIDToken = JWTIDToken> {
   restoreUri(): void {
     const uri = window.localStorage.getItem('preAuthUri')
     window.localStorage.removeItem('preAuthUri')
-    console.log({ uri })
+    // console.log({ uri })
     if (uri !== null) {
       window.location.replace(uri)
     }
