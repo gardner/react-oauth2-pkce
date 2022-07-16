@@ -1,27 +1,35 @@
-import { randomBytes, createHash } from 'crypto'
-
 export type PKCECodePair = {
   codeVerifier: string
   codeChallenge: string
   createdAt: Date
 }
 
-export const base64URLEncode = (str: Buffer): string => {
-  return str
-    .toString('base64')
+const generateRandomString = (length: number): string => {
+  let text = ''
+  const possible =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+
+  for (let i = 0; i < length; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length))
+  }
+
+  return text
+}
+
+export const createPKCECodes = async (): Promise<PKCECodePair> => {
+  const codeVerifier = generateRandomString(64)
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(codeVerifier)
+  )
+
+  const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/=/g, '')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
-    .replace(/=/g, '')
-}
 
-export const sha256 = (buffer: Buffer): Buffer => {
-  return createHash('sha256').update(buffer).digest()
-}
-
-export const createPKCECodes = (): PKCECodePair => {
-  const codeVerifier = base64URLEncode(randomBytes(64))
-  const codeChallenge = base64URLEncode(sha256(Buffer.from(codeVerifier)))
   const createdAt = new Date()
+
   const codePair = {
     codeVerifier,
     codeChallenge,

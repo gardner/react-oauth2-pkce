@@ -4,6 +4,8 @@ import { toUrlEncoded } from './util'
 
 import jwtDecode from 'jwt-decode'
 
+export type CacheLocation = 'localStorage' | 'sessionStorage'
+
 export interface AuthServiceProps {
   clientId: string
   clientSecret?: string
@@ -18,6 +20,7 @@ export interface AuthServiceProps {
   scopes: string[]
   autoRefresh?: boolean
   refreshSlack?: number
+  cacheLocation?: CacheLocation
 }
 
 export interface AuthTokens {
@@ -48,10 +51,12 @@ export interface TokenRequestBody {
 
 export class AuthService<TIDToken = JWTIDToken> {
   props: AuthServiceProps
+  cacheLocation: CacheLocation = 'localStorage'
   timeout?: number
 
   constructor(props: AuthServiceProps) {
     this.props = props
+    this.cacheLocation = props?.cacheLocation || 'localStorage'
     const code = this.getCodeFromLocation(window.location)
     if (code !== null) {
       this.fetchToken(code)
@@ -69,7 +74,7 @@ export class AuthService<TIDToken = JWTIDToken> {
     }
   }
 
-  getUser(): {} {
+  getUser(): {} | TIDToken {
     const t = this.getAuthTokens()
     if (null === t) return {}
     const decoded = jwtDecode(t.id_token) as TIDToken
@@ -110,14 +115,14 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   getItem(key: string): string | null {
-    return window.localStorage.getItem(key)
+    return window[this.cacheLocation].getItem(key)
   }
   removeItem(key: string): void {
-    window.localStorage.removeItem(key)
+    window[this.cacheLocation].removeItem(key)
   }
 
   getPkce(): PKCECodePair {
-    const pkce = window.localStorage.getItem('pkce')
+    const pkce = window[this.cacheLocation].getItem('pkce')
     if (null === pkce) {
       throw new Error('PKCE pair not found in local storage')
     } else {
@@ -129,36 +134,38 @@ export class AuthService<TIDToken = JWTIDToken> {
     const { refreshSlack = 5 } = this.props
     const now = new Date().getTime()
     auth.expires_at = now + (auth.expires_in + refreshSlack) * 1000
-    window.localStorage.setItem('auth', JSON.stringify(auth))
+    window[this.cacheLocation].setItem('auth', JSON.stringify(auth))
   }
 
   getAuthTokens(): AuthTokens {
-    return JSON.parse(window.localStorage.getItem('auth') || '{}')
+    return JSON.parse(window[this.cacheLocation].getItem('auth') || '{}')
   }
 
   isPending(): boolean {
     return (
-      window.localStorage.getItem('pkce') !== null &&
-      window.localStorage.getItem('auth') === null
+      window[this.cacheLocation].getItem('pkce') !== null &&
+      window[this.cacheLocation].getItem('auth') === null
     )
   }
 
   isAuthenticated(): boolean {
-    return window.localStorage.getItem('auth') !== null
+    return window[this.cacheLocation].getItem('auth') !== null
   }
 
-  async logout(shouldEndSession: boolean = false): Promise<boolean> {
+  async logout(shouldEndSession = false): Promise<boolean> {
     this.removeItem('pkce')
     this.removeItem('auth')
     if (shouldEndSession) {
-      const { clientId, provider, logoutEndpoint, redirectUri } = this.props;
+      const { clientId, provider, logoutEndpoint, redirectUri } = this.props
       const query = {
         client_id: clientId,
         post_logout_redirect_uri: redirectUri
       }
-      const url = `${logoutEndpoint || `${provider}/logout`}?${toUrlEncoded(query)}`
+      const url = `${logoutEndpoint || `${provider}/logout`}?${toUrlEncoded(
+        query
+      )}`
       window.location.replace(url)
-      return true;
+      return true
     } else {
       window.location.reload()
       return true
@@ -170,28 +177,38 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   // this will do a full page reload and to to the OAuth2 provider's login page and then redirect back to redirectUri
-  authorize(): boolean {
-    const { clientId, provider, authorizeEndpoint, redirectUri, scopes, audience } = this.props
-
-    const pkce = createPKCECodes()
-    window.localStorage.setItem('pkce', JSON.stringify(pkce))
-    window.localStorage.setItem('preAuthUri', location.href)
-    window.localStorage.removeItem('auth')
-    const codeChallenge = pkce.codeChallenge
-
-    const query = {
+  authorize(): Promise<boolean> {
+    const {
       clientId,
-      scope: scopes.join(' '),
-      responseType: 'code',
+      provider,
+      authorizeEndpoint,
       redirectUri,
-      ...(audience && { audience }),
-      codeChallenge,
-      codeChallengeMethod: 'S256'
-    }
-    // Responds with a 302 redirect
-    const url = `${authorizeEndpoint || `${provider}/authorize`}?${toUrlEncoded(query)}`
-    window.location.replace(url)
-    return true
+      scopes,
+      audience
+    } = this.props
+
+    return createPKCECodes().then((pkce) => {
+      window.localStorage.setItem('pkce', JSON.stringify(pkce))
+      window.localStorage.setItem('preAuthUri', window.location.href)
+      window.localStorage.removeItem('auth')
+      const { codeChallenge } = pkce
+
+      const query = {
+        clientId,
+        scope: scopes.join(' '),
+        responseType: 'code',
+        redirectUri,
+        ...(audience && { audience }),
+        codeChallenge,
+        codeChallengeMethod: 'S256'
+      }
+      // Responds with a 302 redirect
+      const url = `${
+        authorizeEndpoint || `${provider}/authorize`
+      }?${toUrlEncoded(query)}`
+      window.location.replace(url)
+      return true
+    })
   }
 
   // this happens after a full page reload. Read the code from localstorage
@@ -237,7 +254,7 @@ export class AuthService<TIDToken = JWTIDToken> {
       body: toUrlEncoded(payload)
     })
     this.removeItem('pkce')
-    let json = await response.json()
+    const json = await response.json()
     if (isRefresh && !json.refresh_token) {
       json.refresh_token = payload.refresh_token
     }
@@ -293,8 +310,8 @@ export class AuthService<TIDToken = JWTIDToken> {
   }
 
   restoreUri(): void {
-    const uri = window.localStorage.getItem('preAuthUri')
-    window.localStorage.removeItem('preAuthUri')
+    const uri = window[this.cacheLocation].getItem('preAuthUri')
+    window[this.cacheLocation].removeItem('preAuthUri')
     console.log({ uri })
     if (uri !== null) {
       window.location.replace(uri)
