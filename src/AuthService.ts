@@ -236,6 +236,10 @@ export class AuthService<TIDToken = JWTIDToken> {
       method: 'POST',
       body: toUrlEncoded(payload)
     })
+    if (isRefresh && !response.ok) {
+      await this.logout()
+      await this.login()
+    }
     this.removeItem('pkce')
     let json = await response.json()
     if (isRefresh && !json.refresh_token) {
