@@ -240,7 +240,7 @@ export class AuthService<TIDToken = JWTIDToken> {
     if (isRefresh && !response.ok) {
       await this.logout()
       await this.login()
-      return null
+      throw Error('refresh token failed')
     }
     let json = await response.json()
     if (isRefresh && !json.refresh_token) {
