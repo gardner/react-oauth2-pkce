@@ -18,6 +18,7 @@ export interface AuthServiceProps {
   scopes: string[]
   autoRefresh?: boolean
   refreshSlack?: number
+  queryParams?: object
 }
 
 export interface AuthTokens {
@@ -171,7 +172,7 @@ export class AuthService<TIDToken = JWTIDToken> {
 
   // this will do a full page reload and to to the OAuth2 provider's login page and then redirect back to redirectUri
   authorize(): boolean {
-    const { clientId, provider, authorizeEndpoint, redirectUri, scopes, audience } = this.props
+    const { clientId, provider, authorizeEndpoint, redirectUri, scopes, audience, queryParams } = this.props
 
     const pkce = createPKCECodes()
     window.localStorage.setItem('pkce', JSON.stringify(pkce))
@@ -185,6 +186,7 @@ export class AuthService<TIDToken = JWTIDToken> {
       responseType: 'code',
       redirectUri,
       ...(audience && { audience }),
+      ...queryParams,
       codeChallenge,
       codeChallengeMethod: 'S256'
     }
